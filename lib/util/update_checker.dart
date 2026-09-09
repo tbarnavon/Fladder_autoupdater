@@ -10,11 +10,20 @@ import 'package:package_info_plus/package_info_plus.dart';
 const updateRepoOwner = 'realspinelle';
 const updateRepoName = 'Fladder_realspinelle_autoupdater';
 
+/// Which release channel this build belongs to. Set at build time via
+/// `--dart-define=UPDATE_CHANNEL=nightly` in CI; defaults to stable/release
+/// behavior for any build that doesn't pass it (e.g. local `flutter run`).
+const kUpdateChannel = String.fromEnvironment('UPDATE_CHANNEL', defaultValue: 'release');
+
+const _nightlyTag = 'nightly';
+
 class ReleaseInfo {
   final String version;
   final String changelog;
   final String url;
   final bool isNewerThanCurrent;
+  final bool isPrerelease;
+  final int? buildNumber;
   final Map<String, String> downloads;
 
   ReleaseInfo({
@@ -22,6 +31,8 @@ class ReleaseInfo {
     required this.changelog,
     required this.url,
     required this.isNewerThanCurrent,
+    required this.isPrerelease,
+    this.buildNumber,
     required this.downloads,
   });
 
@@ -79,6 +90,8 @@ class UpdateChecker {
   Future<List<ReleaseInfo>> fetchRecentReleases({int count = 5}) async {
     final info = await PackageInfo.fromPlatform();
     final currentVersion = info.version;
+    final currentBuildNumber = int.tryParse(info.buildNumber);
+    final isNightlyChannel = kUpdateChannel == _nightlyTag;
 
     final url = Uri.parse('https://api.github.com/repos/$owner/$repo/releases?per_page=$count');
     final response = await http.get(url);
@@ -94,6 +107,8 @@ class UpdateChecker {
       final changelog = json['body'] as String? ?? '';
       final htmlUrl = json['html_url'] as String? ?? '';
       final assets = json['assets'] as List<dynamic>? ?? [];
+      final isPrerelease = json['prerelease'] as bool? ?? false;
+      final buildNumber = _extractBuildNumber(changelog);
 
       final Map<String, String> downloads = {};
       for (final asset in assets) {
@@ -126,13 +141,28 @@ class UpdateChecker {
         }
       }
 
-      bool isNewer = tag != null && _compareVersions(tag, currentVersion) > 0;
+      // Nightly and stable are separate channels: a nightly install only ever considers
+      // the rolling "nightly" release (compared by embedded build number, since its tag
+      // never changes), and a stable install ignores prereleases and only trusts tags
+      // that look like a real semver (a manually-dispatched release build against a
+      // branch ref would otherwise tag something like "develop").
+      final isNewer = isNightlyChannel
+          ? tag == _nightlyTag &&
+              buildNumber != null &&
+              currentBuildNumber != null &&
+              buildNumber > currentBuildNumber
+          : !isPrerelease &&
+              tag != null &&
+              RegExp(r'^\d+\.\d+\.\d+$').hasMatch(tag) &&
+              _compareVersions(tag, currentVersion) > 0;
 
       return ReleaseInfo(
         version: tag ?? 'unknown',
         changelog: changelog.trim(),
         url: htmlUrl,
         isNewerThanCurrent: isNewer,
+        isPrerelease: isPrerelease,
+        buildNumber: buildNumber,
         downloads: downloads,
       );
     }).toList();
@@ -142,6 +172,14 @@ class UpdateChecker {
     final releases = await fetchRecentReleases(count: 1);
     if (releases.isEmpty) return true;
     return !releases.first.isNewerThanCurrent;
+  }
+
+  /// Extracts the CI-embedded `<!-- fladder-update-meta: buildNumber=123 -->` marker
+  /// from a release body. Only nightly releases carry this; used to order successive
+  /// nightlies since they all share the same fixed "nightly" tag and pubspec version.
+  static int? _extractBuildNumber(String changelog) {
+    final match = RegExp(r'fladder-update-meta:\s*buildNumber=(\d+)').firstMatch(changelog);
+    return match != null ? int.tryParse(match.group(1)!) : null;
   }
 
   static int _compareVersions(String a, String b) {

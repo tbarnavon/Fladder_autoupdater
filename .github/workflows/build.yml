@@ -174,13 +174,13 @@ jobs:
       - name: Build Android APK (PRs)
         if: needs.fetch-info.outputs.build_type == 'development'
         run: |
-          flutter build apk --debug --split-per-abi --build-number=${{github.run_number}} --flavor production
+          flutter build apk --debug --split-per-abi --build-number=${{github.run_number}} --flavor production --dart-define=UPDATE_CHANNEL=${{ needs.fetch-info.outputs.build_type }}
 
       - name: Build Android APK and AAB
         if: needs.fetch-info.outputs.build_type != 'development'
         run: |
-          flutter build apk --release --split-per-abi --build-number=${{github.run_number}} --flavor production
-          flutter build appbundle --release --build-number=${{github.run_number}} --flavor production
+          flutter build apk --release --split-per-abi --build-number=${{github.run_number}} --flavor production --dart-define=UPDATE_CHANNEL=${{ needs.fetch-info.outputs.build_type }}
+          flutter build appbundle --release --build-number=${{github.run_number}} --flavor production --dart-define=UPDATE_CHANNEL=${{ needs.fetch-info.outputs.build_type }}
 
       - name: Rename APK for PR
         if: needs.fetch-info.outputs.build_type == 'development'
@@ -229,7 +229,7 @@ jobs:
         run: flutter pub get
 
       - name: Build Windows EXE
-        run: flutter build windows --build-number=${{ github.run_number }}
+        run: flutter build windows --build-number=${{ github.run_number }} --dart-define=UPDATE_CHANNEL=${{ needs.fetch-info.outputs.build_type }}
 
       - name: Compile Inno Setup installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
@@ -275,26 +275,6 @@ jobs:
             echo "version=${{ needs.fetch-info.outputs.version_name }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Delete existing nightly release
-        if: needs.fetch-info.outputs.build_type == 'nightly'
-        run: |
-          # Delete existing nightly release and tag with better error handling
-          echo "Checking for existing nightly release..."
-          if gh release view ${{ env.NIGHTLY_TAG }} >/dev/null 2>&1; then
-            echo "Deleting existing nightly release..."
-            gh release delete ${{ env.NIGHTLY_TAG }} --yes --cleanup-tag
-          else
-            echo "No existing nightly release found."
-          fi
-
-          # Clean up any orphaned tags
-          if git tag -l | grep -q "^${{ env.NIGHTLY_TAG }}$"; then
-            echo "Deleting orphaned nightly tag..."
-            git push origin --delete ${{ env.NIGHTLY_TAG }} || true
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Generate changelog
         if: needs.fetch-info.outputs.build_type == 'nightly'
         id: changelog
@@ -337,6 +317,8 @@ jobs:
           🔧 **Build Number:** ${{ github.run_number }}
           📝 **Commit:** ${{ github.sha }}
           🌿 **Branch:** develop
+
+          <!-- fladder-update-meta: buildNumber=${{ github.run_number }} -->
           EOF
 
           echo "changelog_file=changelog.md" >> $GITHUB_OUTPUT
@@ -375,6 +357,28 @@ jobs:
 
       - name: Rename Windows installer
         run: mv fladder-windows-installer/fladder_setup.exe Fladder-Windows-${{ steps.version.outputs.version }}-Setup.exe
+
+      - name: Delete existing nightly release
+        if: needs.fetch-info.outputs.build_type == 'nightly'
+        run: |
+          # Delete existing nightly release and tag with better error handling.
+          # Runs immediately before Create Release (rather than at the start of this
+          # job) to minimize the window where no nightly release exists at all.
+          echo "Checking for existing nightly release..."
+          if gh release view ${{ env.NIGHTLY_TAG }} >/dev/null 2>&1; then
+            echo "Deleting existing nightly release..."
+            gh release delete ${{ env.NIGHTLY_TAG }} --yes --cleanup-tag
+          else
+            echo "No existing nightly release found."
+          fi
+
+          # Clean up any orphaned tags
+          if git tag -l | grep -q "^${{ env.NIGHTLY_TAG }}$"; then
+            echo "Deleting orphaned nightly tag..."
+            git push origin --delete ${{ env.NIGHTLY_TAG }} || true
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2.2.2
