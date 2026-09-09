@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:collection/collection.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -24,6 +25,10 @@ final hasNewUpdateProvider = Provider<bool>((ref) {
 
   return latestVersion != lastViewedVersion;
 });
+
+/// Whether the startup "update available" dialog has already been shown this session.
+/// Not persisted: resets on every cold start so the dialog can appear again next launch.
+final hasShownStartupUpdateDialogProvider = StateProvider<bool>((ref) => false);
 
 @Riverpod(keepAlive: true)
 class Update extends _$Update {
@@ -66,6 +71,8 @@ class Update extends _$Update {
       _fetchLatest();
     }
   }
+
+  Future<List<ReleaseInfo>> checkNow() => _fetchLatest();
 
   Future<List<ReleaseInfo>> _fetchLatest() async {
     final latest = await updateChecker.fetchRecentReleases();

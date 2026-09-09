@@ -1573,6 +1573,13 @@
     }
   },
   "newUpdateFoundOnGithub": "Found a new update on Github",
+  "checkForUpdatesNow": "Check for updates now",
+  "upToDateMessage": "You're already on the latest version.",
+  "updateDialogUpdateButton": "Update",
+  "updateDialogLaterButton": "Later",
+  "downloadingUpdate": "Downloading update…",
+  "installingUpdate": "Installing update…",
+  "installPermissionRequiredMessage": "Allow Fladder to install updates to continue.",
   "enableBackgroundPostersTitle": "Enable background posters",
   "enableBackgroundPostersDesc": "Show random posters in applicable screens",
   "notificationDownloadingDownloading": "Downloading",

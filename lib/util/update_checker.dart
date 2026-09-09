@@ -5,6 +5,11 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 
+/// GitHub repository that [UpdateChecker] fetches releases from.
+/// Change these two constants when building from a different fork.
+const updateRepoOwner = 'realspinelle';
+const updateRepoName = 'Fladder_realspinelle_autoupdater';
+
 class ReleaseInfo {
   final String version;
   final String changelog;
@@ -68,8 +73,8 @@ extension DownloadLabelFormatter on String {
 }
 
 class UpdateChecker {
-  final String owner = 'DonutWare';
-  final String repo = 'Fladder';
+  final String owner = updateRepoOwner;
+  final String repo = updateRepoName;
 
   Future<List<ReleaseInfo>> fetchRecentReleases({int count = 5}) async {
     final info = await PackageInfo.fromPlatform();
@@ -96,7 +101,10 @@ class UpdateChecker {
         final downloadUrl = asset['browser_download_url'] as String? ?? '';
 
         if (name.contains('Android') && name.endsWith('.apk')) {
-          downloads['android'] = downloadUrl;
+          // Per-ABI release APKs (Fladder-Android-{version}-{abi}.apk) are keyed by ABI so the
+          // right one can be picked for the running device; a nameless/universal APK falls back to 'android'.
+          final abi = RegExp(r'-(arm64-v8a|armeabi-v7a|x86_64)\.apk$').firstMatch(name)?.group(1);
+          downloads[abi != null ? 'android_$abi' : 'android'] = downloadUrl;
         } else if (name.contains('iOS') && name.endsWith('.ipa')) {
           downloads['ios'] = downloadUrl;
         } else if (name.contains('Windows') && name.endsWith('Setup.exe')) {

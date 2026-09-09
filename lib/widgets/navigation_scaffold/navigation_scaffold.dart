@@ -6,11 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fladder/models/items/audio_model.dart';
 import 'package:fladder/models/media_playback_model.dart';
+import 'package:fladder/providers/update_provider.dart';
 import 'package:fladder/providers/video_player_provider.dart';
 import 'package:fladder/providers/views_provider.dart';
 import 'package:fladder/providers/window_title_provider.dart';
 import 'package:fladder/routes/auto_router.dart';
 import 'package:fladder/screens/home_screen.dart';
+import 'package:fladder/screens/settings/widgets/update_available_dialog.dart';
 import 'package:fladder/screens/shared/animated_fade_size.dart';
 import 'package:fladder/screens/shared/nested_bottom_appbar.dart';
 import 'package:fladder/screens/video_player/audio_player_full_screen.dart';
@@ -72,8 +74,24 @@ class _NavigationScaffoldState extends ConsumerState<NavigationScaffold> {
     }
   }
 
+  void _maybeShowStartupUpdateDialog() {
+    if (ref.read(hasShownStartupUpdateDialogProvider)) return;
+    if (!ref.read(hasNewUpdateProvider)) return;
+
+    final latestRelease = ref.read(updateProvider.select((value) => value.latestRelease));
+    if (latestRelease == null) return;
+
+    ref.read(hasShownStartupUpdateDialogProvider.notifier).state = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) showUpdateAvailableDialog(context, latestRelease);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen(hasNewUpdateProvider, (previous, hasNewUpdate) => _maybeShowStartupUpdateDialog());
+    _maybeShowStartupUpdateDialog();
+
     final views = ref.watch(viewsProvider.select((value) => value.views));
     final playerState = ref.watch(mediaPlaybackProvider.select((value) => value.state));
     final currentItem = ref.watch(playBackModel.select((value) => value?.item));

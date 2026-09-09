@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:markdown_widget/widget/markdown.dart';
 
 import 'package:fladder/providers/settings/client_settings_provider.dart';
 import 'package:fladder/providers/update_provider.dart';
 import 'package:fladder/screens/settings/settings_list_tile.dart';
+import 'package:fladder/screens/settings/widgets/update_available_dialog.dart';
+import 'package:fladder/screens/shared/fladder_notification_overlay.dart';
 import 'package:fladder/screens/shared/media/external_urls.dart';
 import 'package:fladder/util/list_padding.dart';
 import 'package:fladder/util/localization_helper.dart';
@@ -20,6 +24,22 @@ class SettingsUpdateInformation extends ConsumerStatefulWidget {
 }
 
 class _SettingsUpdateInformationState extends ConsumerState<SettingsUpdateInformation> {
+  bool _checking = false;
+
+  Future<void> _checkNow() async {
+    setState(() => _checking = true);
+    final releases = await ref.read(updateProvider.notifier).checkNow();
+    if (!mounted) return;
+    setState(() => _checking = false);
+
+    final latest = releases.firstWhereOrNull((release) => release.isNewerThanCurrent);
+    if (latest != null) {
+      showUpdateAvailableDialog(context, latest);
+    } else {
+      FladderSnack.show(context.localized.upToDateMessage, context: context);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -55,11 +75,27 @@ class _SettingsUpdateInformationState extends ConsumerState<SettingsUpdateInform
             onTap: () => ref
                 .read(clientSettingsProvider.notifier)
                 .update((value) => value.copyWith(checkForUpdates: !checkForUpdate)),
-            trailing: Switch(
-              value: checkForUpdate,
-              onChanged: (value) => ref
-                  .read(clientSettingsProvider.notifier)
-                  .update((value) => value.copyWith(checkForUpdates: !checkForUpdate)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: context.localized.checkForUpdatesNow,
+                  onPressed: _checking ? null : _checkNow,
+                  icon: _checking
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(IconsaxPlusLinear.refresh),
+                ),
+                Switch(
+                  value: checkForUpdate,
+                  onChanged: (value) => ref
+                      .read(clientSettingsProvider.notifier)
+                      .update((value) => value.copyWith(checkForUpdates: !checkForUpdate)),
+                ),
+              ],
             ),
           ),
           if (latestRelease != null)
