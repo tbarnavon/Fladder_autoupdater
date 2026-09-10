@@ -7,7 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 /// GitHub repository that [UpdateChecker] fetches releases from.
 /// Change these two constants when building from a different fork.
-const updateRepoOwner = 'realspinelle';
+const updateRepoOwner = 'tbarnavon';
 const updateRepoName = 'Fladder_autoupdater';
 
 /// Which release channel this build belongs to. Set at build time via
