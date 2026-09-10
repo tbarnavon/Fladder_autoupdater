@@ -17,7 +17,7 @@ final hasNewUpdateProvider = Provider<bool>((ref) {
   final latestRelease = ref.watch(updateProvider).latestRelease;
   final lastViewedVersion = ref.watch(clientSettingsProvider.select((value) => value.lastViewedUpdate));
 
-  final latestVersion = latestRelease?.version;
+  final latestVersion = latestRelease?.updateIdentifier;
 
   if (latestVersion == null || lastViewedVersion == null) {
     return false;

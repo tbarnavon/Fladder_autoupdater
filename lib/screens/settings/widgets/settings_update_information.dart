@@ -47,10 +47,10 @@ class _SettingsUpdateInformationState extends ConsumerState<SettingsUpdateInform
       final latestRelease = ref.read(updateProvider.select((value) => value.latestRelease));
       if (latestRelease == null) return;
       final lastViewedUpdate = ref.read(clientSettingsProvider.select((value) => value.lastViewedUpdate));
-      if (lastViewedUpdate != latestRelease.version) {
+      if (lastViewedUpdate != latestRelease.updateIdentifier) {
         ref
             .read(clientSettingsProvider.notifier)
-            .update((value) => value.copyWith(lastViewedUpdate: latestRelease.version));
+            .update((value) => value.copyWith(lastViewedUpdate: latestRelease.updateIdentifier));
       }
     });
   }
@@ -69,34 +69,35 @@ class _SettingsUpdateInformationState extends ConsumerState<SettingsUpdateInform
         physics: const NeverScrollableScrollPhysics(),
         children: [
           const Divider(),
-          SettingsListTile(
-            label: Text(context.localized.latestReleases),
-            subLabel: Text(context.localized.autoCheckForUpdates),
-            onTap: () => ref
-                .read(clientSettingsProvider.notifier)
-                .update((value) => value.copyWith(checkForUpdates: !checkForUpdate)),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: context.localized.checkForUpdatesNow,
-                  onPressed: _checking ? null : _checkNow,
-                  icon: _checking
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(IconsaxPlusLinear.refresh),
-                ),
-                Switch(
-                  value: checkForUpdate,
-                  onChanged: (value) => ref
+          Row(
+            children: [
+              Expanded(
+                child: SettingsListTile(
+                  label: Text(context.localized.latestReleases),
+                  subLabel: Text(context.localized.autoCheckForUpdates),
+                  onTap: () => ref
                       .read(clientSettingsProvider.notifier)
                       .update((value) => value.copyWith(checkForUpdates: !checkForUpdate)),
+                  trailing: Switch(
+                    value: checkForUpdate,
+                    onChanged: (value) => ref
+                        .read(clientSettingsProvider.notifier)
+                        .update((value) => value.copyWith(checkForUpdates: !checkForUpdate)),
+                  ),
                 ),
-              ],
-            ),
+              ),
+              IconButton(
+                tooltip: context.localized.checkForUpdatesNow,
+                onPressed: _checking ? null : _checkNow,
+                icon: _checking
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(IconsaxPlusLinear.refresh),
+              ),
+            ],
           ),
           if (latestRelease != null)
             UpdateInformation(

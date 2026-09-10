@@ -36,6 +36,12 @@ class ReleaseInfo {
     required this.downloads,
   });
 
+  /// Identifies this specific release for "have I already seen this" purposes.
+  /// [version] alone isn't enough for nightly: every nightly release reuses the
+  /// same "nightly" tag, so a newer nightly would otherwise look identical to
+  /// one already viewed. Folds in [buildNumber] (unique per nightly) when present.
+  String get updateIdentifier => buildNumber != null ? '$version+$buildNumber' : version;
+
   String? downloadUrlFor(String platform) => downloads[platform];
 
   Map<String, String> get preferredDownloads {
